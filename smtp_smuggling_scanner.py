@@ -145,7 +145,6 @@ Subject: SETUP CHECK
 Date: {mail_date}
 Message-ID: {message_id}
 
-
 Your setup seems to be working! You can now proceed with smuggling tests!
 .
 """
@@ -262,7 +261,7 @@ if __name__ == '__main__':
     out = out()
     
     argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument("receiver_address", help="The receiver address to use. Make sure this is a valid e-mail address.", nargs="?")
+    argument_parser.add_argument("receiver_address", help="The receiver address to use. Make sure this is a valid e-mail address.", nargs=1)
     argument_parser.add_argument("--sender-domain", help="The sender domain to use. Make sure you have a valid SPF record for this domain.",default="check.smtpsmuggling.com")
     argument_parser.add_argument("--inbound-smtp-server", help="Manually specify the receiving/inbound SMTP server to check.", default=False)
     argument_parser.add_argument("--setup-check", help="Check if your setup is working by sending a test e-mail.", action="store_true")
@@ -272,6 +271,6 @@ if __name__ == '__main__':
     args = argument_parser.parse_args()
     debug = args.debug
 
-    run_check(args.sender_domain, args.receiver_address, args.inbound_smtp_server, args.setup_check, args.tls, args.port)
+    run_check(args.sender_domain, args.receiver_address[0], args.inbound_smtp_server, args.setup_check, args.tls, args.port)
 
     
