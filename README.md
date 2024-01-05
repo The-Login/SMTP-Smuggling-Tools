@@ -25,7 +25,7 @@ Furthermore, you can install required python modules via:
 
 ## Usage  
 **Setup check:** Sends a test e-mail to verify that the test setup is working correctly. You should receive an e-mail from setup.check@YOURDOMAIN.  
-```python3 smtp_analysis_scanner.py --setup-check YOUR@EMAIL.ADDRESS```  
+```python3 smtp_smuggling_scanner.py --setup-check YOUR@EMAIL.ADDRESS```  
 To use your own domain, run:  
 ```python3 smtp_smuggling_scanner.py --setup-check --sender-domain YOURTESTDOMAIN YOUR@EMAIL.ADDRESS```  
   
