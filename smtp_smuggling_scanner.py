@@ -15,11 +15,8 @@ eod_sequences = [
     "\r.\n",
     "\r.\r",
     "\n.\r\n",
-    "\r\n.\n",
     "\r.\r\n",
-    "\r\n.\r",
-    "\r\n\x00.\r\n",
-    "\r\n.\x00\r\n"
+    "\r\n\x00.\r\n"
 ]
 
 class out:
