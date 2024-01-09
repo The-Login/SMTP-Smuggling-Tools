@@ -7,9 +7,11 @@ import datetime
 import smtplib
 import socket
 
-smtp_connection_timeout = 10
+smtp_connection_timeout = 5
 current_server_replies = []
-eod_sequences = [
+
+# To reduce false positives, eod sequences for inbound testing have been reduced for now (https://github.com/The-Login/SMTP-Smuggling-Tools/issues/6)
+inbound_eod_sequences = [
     "\n.\n",
     "\n.\r",
     "\r.\n",
@@ -18,6 +20,28 @@ eod_sequences = [
     "\r.\r\n",
     "\r\n\x00.\r\n"
 ]
+
+outbound_eod_sequences = [
+    "\n.\n",
+    "\n.\r",
+    "\r.\n",
+    "\r.\r",
+    "\n.\r\n",
+    "\r.\r\n",
+    "\r\n.\r\r\n",
+    "\r\r\n.\r\r\n",
+    "\r\n\x00.\r\n"
+]
+
+examples = """Examples
+Scanning inbound SMTP servers:
+  python3 smtp_smuggling_scanner.py --setup-check YOUR@EMAIL.ADDRESS
+  python3 smtp_smuggling_scanner.py YOUR@EMAIL.ADDRESS
+
+Scanning outbound SMTP servers:
+  python3 smtp_smuggling_scanner.py YOUR@RECEIVER.ADDRESS --outbound-smtp-server SOMESERVER.SMTP.SERVER --port 587 --starttls --sender-address YOUR@EMAIL.ADRESS --username YOUR@EMAIL.ADRESS --password PASSWORD --setup-check
+  python3 smtp_smuggling_scanner.py YOUR@RECEIVER.ADDRESS --outbound-smtp-server SOMESERVER.SMTP.SERVER --port 587 --starttls --sender-address YOUR@EMAIL.ADRESS --username YOUR@EMAIL.ADRESS --password PASSWORD
+"""
 
 class out:
     def green(self, msg):
@@ -118,8 +142,8 @@ def new_data(self, msg):
 def return_unchanged(data):
     return data
 
-##### Checks the used test setup by sending a test e-mail
-def check_setup(inbound_smtp_server, sender_domain, receiver_address, tls, port):
+##### Checks the used test setup for inbound scanning by sending a test e-mail
+def check_inbound_setup(inbound_smtp_server, sender_domain, receiver_address, tls, starttls, port):
     global current_server_replies
     current_server_replies = []
     try:
@@ -142,7 +166,7 @@ Subject: SETUP CHECK
 Date: {mail_date}
 Message-ID: {message_id}
 
-Your setup seems to be working! You can now proceed with smuggling tests!
+Your inbound setup seems to be working! You can now proceed with smuggling tests!
 .
 """
         check_message = _fix_eols(check_message)
@@ -166,10 +190,60 @@ Your setup seems to be working! You can now proceed with smuggling tests!
             pass
             return True
 
-##### Performs multiple SMTP smuggling checks with a range of non-RFC compliant end-of-data sequences
-def check_smuggling(inbound_smtp_server, sender_domain, receiver_address, tls, port):
+##### Checks the used test setup for outbound scanning by sending a test e-mail
+def check_outbound_setup(outbound_smtp_server, sender_address, receiver_address, username, password, smuggling_identifier, tls, starttls, port):
+    global current_server_replies
+    current_server_replies = []
+    try:
+        if tls:
+            server = smtplib.SMTP_SSL(outbound_smtp_server, port, timeout=smtp_connection_timeout)
+        else:
+            server = smtplib.SMTP(outbound_smtp_server, port, timeout=smtp_connection_timeout)
+        
+        if debug:
+            server.set_debuglevel(1)
 
-    for eod_sequence in eod_sequences:
+        if not tls and starttls:
+            server.starttls()
+
+        if username != False and password != False:
+            server.login(username, password)
+
+        check_message = """\
+From: {sender_address}
+To: {receiver_address}
+Subject: SETUP CHECK
+
+{smuggling_identifier_start}
+Your outbound setup seems to be working! You can now proceed with smuggling tests!
+{smuggling_identifier_end}
+.
+"""
+        check_message = _fix_eols(check_message)
+        check_message = check_message.format(sender_address=sender_address, receiver_address=receiver_address,  smuggling_identifier_start=smuggling_identifier + "START", smuggling_identifier_end=smuggling_identifier + "END")
+        server.sendmail(sender_address, [receiver_address], check_message)
+        out.success("Sent setup e-mail! Check your inbox!")
+        while True:
+            server.getreply()
+
+    except socket.error:
+        for reply in enumerate(current_server_replies):
+            out.debug(str(reply))
+        pass
+        return True
+    except Exception as e:
+        out.debug(str(e))
+        try:
+            server.quit()
+            return True
+        except Exception as e:
+            pass
+            return True
+
+##### Performs multiple inbound SMTP smuggling checks with a range of non-RFC compliant end-of-data sequences
+def check_inbound_smuggling(inbound_smtp_server, sender_domain, receiver_address, tls, starttls, port):
+
+    for eod_sequence in inbound_eod_sequences:
         global current_server_replies
         current_server_replies = []
         eod_sequence_string = repr(eod_sequence)
@@ -232,23 +306,59 @@ SMUGGLING WORKS with {eod_sequence_string} as "fake" end-of-data sequence!
                 pass
                 continue
 
-def run_check(sender_domain, receiver_address, inbound_smtp_server, setup_check, tls, port):
-    receiver_domain = receiver_address.split("@")[1]
-
-    if inbound_smtp_server == False:
-        out.info(f"Getting MX record for domain: {receiver_domain}")
+##### Performs multiple outbound SMTP smuggling checks with a range of non-RFC compliant end-of-data sequences
+def check_outbound_smuggling(outbound_smtp_server, sender_address, receiver_address, username, password, smuggling_identifier, tls, starttls, port):
+        
+    for eod_sequence in outbound_eod_sequences:
+        global current_server_replies
+        current_server_replies = []
+        eod_sequence_string = repr(eod_sequence)
         try:
-            inbound_smtp_server = str(dns.resolver.resolve(receiver_domain, 'MX')[0].exchange)
-        except Exception as e:
-            out.alert(f"Didn't find an MX record for domain {receiver_domain}! Is this a valid receiver domain?")
-            return
+            if tls:
+                server = smtplib.SMTP_SSL(outbound_smtp_server, port, timeout=smtp_connection_timeout)
+            else:
+                server = smtplib.SMTP(outbound_smtp_server, port, timeout=smtp_connection_timeout)
+            
+            if debug:
+                server.set_debuglevel(1)
 
-    if setup_check:
-        out.info("Running setup check!")
-        check_setup(inbound_smtp_server, sender_domain, receiver_address, tls, port)
-    else:
-        out.info("Running SMTP smuggling check!")
-        check_smuggling(inbound_smtp_server, sender_domain, receiver_address, tls, port)
+            if not tls and starttls:
+                server.starttls()
+
+            if username != False and password != False:
+                server.login(username, password)
+
+            check_message = """\
+From: {sender_address}
+To: {receiver_address}
+Subject: Trying EOD ({eod_sequence_string})
+
+TESTING {eod_sequence_string} as "fake" end-of-data sequence!
+{smuggling_identifier_start}
+{inject}
+{smuggling_identifier_end}
+.
+"""
+            check_message = _fix_eols(check_message)
+            check_message = check_message.format(sender_address=sender_address, receiver_address=receiver_address, eod_sequence_string=eod_sequence_string, smuggling_identifier_start=smuggling_identifier + "START", inject=eod_sequence, smuggling_identifier_end=smuggling_identifier + "END")
+            server.sendmail(sender_address, [receiver_address], check_message)
+            out.success(f"Sent smuggling e-mail for end-of-data sequence {eod_sequence_string}! Check your inbox!")
+            while True:
+                server.getreply()
+
+        except socket.error:
+            for reply in enumerate(current_server_replies):
+                out.debug(str(reply))
+            pass
+            continue
+        except Exception as e:
+            out.debug(str(e))
+            try:
+                server.quit()
+                continue
+            except Exception as e:
+                pass
+                continue
 
 if __name__ == '__main__':
     _fix_eols = smtplib._fix_eols
@@ -258,17 +368,49 @@ if __name__ == '__main__':
     smtplib.SMTP.getreply = new_getreply
     out = out()
     
-    argument_parser = argparse.ArgumentParser()
+    # General arguments
+    argument_parser = argparse.ArgumentParser(prog="SMTP Smuggling Scanner", description="A tool for finding SMTP smuggling issues in inbound/receiving and outbound/sending SMTP servers.", epilog=examples, formatter_class=argparse.RawDescriptionHelpFormatter)
     argument_parser.add_argument("receiver_address", help="The receiver address to use. Make sure this is a valid e-mail address.", nargs=1)
+
+    # Arguments for inbound testing
     argument_parser.add_argument("--sender-domain", help="The sender domain to use. Make sure you have a valid SPF record for this domain.",default="check.smtpsmuggling.com")
     argument_parser.add_argument("--inbound-smtp-server", help="Manually specify the receiving/inbound SMTP server to check.", default=False)
+
+    # Arguments for outbound testing
+    argument_parser.add_argument("--outbound-smtp-server", help="The address of the outbound SMTP server (mail submission agent) to use.", default="")
+    argument_parser.add_argument("--sender-address", help="The (outbound) sender address to use.",default="")
+    argument_parser.add_argument("--username", help="Username for (outbound) authentication.", default=False)
+    argument_parser.add_argument("--password", help="Password for (outbound) authentication.", default=False)
+    argument_parser.add_argument("--smuggling-identifier", help="Identifier for highlighting on a receiving SMTP analysis server.", default="SMUGGLING")
+
+    # Arguments for all testing
     argument_parser.add_argument("--setup-check", help="Check if your setup is working by sending a test e-mail.", action="store_true")
     argument_parser.add_argument("--tls", help="Enforce the usage of TLS. (Don't forget changing the port!)", action="store_true")
+    argument_parser.add_argument("--starttls", help="Enforce the usage of STARTTLS. (often required for sending outbound e-mails)", action="store_true")
     argument_parser.add_argument("--debug", help="Output debug info.", action="store_true")
     argument_parser.add_argument("-p", "--port", help="The port to use.", type=int, default=25)
     args = argument_parser.parse_args()
     debug = args.debug
 
-    run_check(args.sender_domain, args.receiver_address[0], args.inbound_smtp_server, args.setup_check, args.tls, args.port)
+    receiver_domain = args.receiver_address[0].split("@")[1]
 
-    
+    if args.inbound_smtp_server == False and not args.outbound_smtp_server:
+        out.info(f"Getting MX record for domain: {receiver_domain}")
+        try:
+            inbound_smtp_server = str(dns.resolver.resolve(receiver_domain, 'MX')[0].exchange)
+        except Exception as e:
+            out.alert(f"Didn't find an MX record for domain {receiver_domain}! Is this a valid receiver domain?")
+            quit()
+
+    if args.setup_check and not args.outbound_smtp_server:
+        out.info("Running inbound setup check!")
+        check_inbound_setup(inbound_smtp_server, args.sender_domain, args.receiver_address[0], args.tls, args.starttls, args.port)
+    elif not args.setup_check and not args.outbound_smtp_server:
+        out.info("Running inbound SMTP smuggling check!")
+        check_inbound_smuggling(inbound_smtp_server, args.sender_domain, args.receiver_address[0], args.tls, args.starttls, args.port)
+    elif args.setup_check and args.outbound_smtp_server:
+        out.info("Running outbound setup check!")
+        check_outbound_setup(args.outbound_smtp_server, args.sender_address, args.receiver_address[0], args.username, args.password, args.smuggling_identifier, args.tls, args.starttls, args.port)
+    elif not args.setup_check and args.outbound_smtp_server:
+        out.info("Running outbound SMTP smuggling check!")
+        check_outbound_smuggling(args.outbound_smtp_server, args.sender_address, args.receiver_address[0], args.username, args.password, args.smuggling_identifier, args.tls, args.starttls, args.port)
