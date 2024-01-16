@@ -36,7 +36,10 @@ Now, if you receive an e-mail from **smuggled@TESTDOMAIN**, please refer to the 
 I have configured check.smtpsmuggling.com (default sender domain) with a neutral SPF record which allows all IP addresses (v=spf1 ?all) and a non-blocking DMARC record (v=DMARC1; p=none). If this setup doesn't work with your e-mailing infrastructure (e.g., e-mails might get blocked), you must set up your own test domain which fulfills your requirements for receiving e-mails (e.g., SPF, DKIM, valid PTR record, etc.).  
 We are already working on a better and simpler solution.  
 
-### Usage  
+### Usage
+**Install dependencies:** For the Script to work correctly, all dependencies defined in the requirements.txt file need to be fullfilled.
+To install missing modules, you can run ```pip install -r requirements.txt```
+
 **Setup check:** Sends a test e-mail to verify that the test setup is working correctly. You should receive an e-mail from setup.check@YOURDOMAIN.  
 ```python3 smtp_smuggling_scanner.py --setup-check YOUR@EMAIL.ADDRESS```  
 To use your own domain, run:  
