@@ -22,7 +22,8 @@ Therefore, when looking for SMTP smuggling vulnerabilities, we must always look 
 In that case, go ahead to "Scanning inbound SMTP servers".
 
 ## Requirements
-```pip install dnspython colorama```
+For the scripts to work correctly, all dependencies defined in the requirements.txt file need to be fulfilled.  
+To install missing modules, you can run: ```pip install -r requirements.txt```
 
 ## Scanning inbound SMTP servers  
 The SMTP Smuggling Scanner (smtp_smuggling_scanner.py) can be used to check inbound/receiving SMTP servers for supported end-of-data sequences and SMTP command pipelining. This works by sending e-mails with fake end-of-data sequences like "\n.\n" and appending a second, smuggled e-mail to YOUR@EMAIL.ADDRESS. Therefore, expect some weird looking e-mails coming from test@TESTDOMAIN (e.g., test@check.smtpsmuggling.com) and in some cases (only if you're vulnerable) e-mails from smuggled@TESTDOMAIN (e.g., smuggled@check.smtpsmuggling.com). A non-smuggled test e-mail may look as follows:  
@@ -37,8 +38,6 @@ I have configured check.smtpsmuggling.com (default sender domain) with a neutral
 We are already working on a better and simpler solution.  
 
 ### Usage
-**Install dependencies:** For the Script to work correctly, all dependencies defined in the requirements.txt file need to be fullfilled.
-To install missing modules, you can run ```pip install -r requirements.txt```
 
 **Setup check:** Sends a test e-mail to verify that the test setup is working correctly. You should receive an e-mail from setup.check@YOURDOMAIN.  
 ```python3 smtp_smuggling_scanner.py --setup-check YOUR@EMAIL.ADDRESS```  
