@@ -4,7 +4,7 @@ Tools for finding SMTP smuggling vulnerabilities in inbound/receiving and outbou
 - *SMTP Analysis Server: Receive and analyse SMTP traffic (coming soon)*
 - *Coming soon: Further tools*
 
-More information on SMTP smuggling can be found [here](https://sec-consult.com/blog/detail/smtp-smuggling-spoofing-e-mails-worldwide/).
+More information on SMTP smuggling can be found on [smtpsmuggling.com](https://smtpsmuggling.com).
 
 # SMTP Smuggling Scanner  
 This tool can be used to scan for SMTP smuggling vulnerabilities in inbound and outbound SMTP servers.  
