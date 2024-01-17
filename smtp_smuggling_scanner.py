@@ -401,6 +401,8 @@ if __name__ == '__main__':
         except Exception as e:
             out.alert(f"Didn't find an MX record for domain {receiver_domain}! Is this a valid receiver domain?")
             quit()
+    elif args.inbound_smtp_server:
+        inbound_smtp_server = args.inbound_smtp_server
 
     if args.setup_check and not args.outbound_smtp_server:
         out.info("Running inbound setup check!")
