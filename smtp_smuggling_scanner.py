@@ -154,7 +154,10 @@ def check_inbound_setup(inbound_smtp_server, sender_domain, receiver_address, tl
 
         if debug:
             server.set_debuglevel(1)
-        
+
+        if not tls and starttls:
+            server.starttls()
+
         mail_date = email.utils.format_datetime(datetime.datetime.now())
         message_id = email.utils.make_msgid(domain=sender_domain)
         server.ehlo(sender_domain)
@@ -255,6 +258,9 @@ def check_inbound_smuggling(inbound_smtp_server, sender_domain, receiver_address
 
             if debug:
                 server.set_debuglevel(1)
+
+            if not tls and starttls:
+                server.starttls()
 
             mail_date = email.utils.format_datetime(datetime.datetime.now())
             message_id = email.utils.make_msgid(domain=sender_domain)
