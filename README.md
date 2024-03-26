@@ -1,7 +1,7 @@
 # SMTP Smuggling Tools  
 Tools for finding SMTP smuggling vulnerabilities in inbound/receiving and outbound/sending SMTP servers.
 - **SMTP Smuggling Scanner: Scanning inbound and outbound SMTP servers**
-- *SMTP Analysis Server: Receive and analyse SMTP traffic (coming soon)*
+- **SMTP Analysis Server: Receive and analyse inbound SMTP messages**
 - *Coming soon: Further tools*
 
 More information on SMTP smuggling can be found on [smtpsmuggling.com](https://smtpsmuggling.com).
@@ -63,7 +63,41 @@ The SMTP Smuggling Scanner can also be used to check outbound/sending SMTP serve
 ```python3 smtp_smuggling_scanner.py YOUR@RECEIVER.ADDRESS --outbound-smtp-server SOMESERVER.SMTP.SERVER --port 587 --starttls --sender-address YOUR@EMAIL.ADRESS --username YOUR@EMAIL.ADRESS --password PASSWORD```  
 
 # SMTP Analysis Server
-*Coming soon*
+The SMTP Analysis Server can be used to analyse inbound SMTP messages. It runs on port 25 and listens for incoming e-mails. Make sure to set an MX record for your ANALYSIS.DOMAIN that points to the SMTP Analysis Server.  
+In combination with the SMTP Smuggling Scanner, the SMTP Analysis Server can be used to check if fake end-of-data sequences like "\n.\n"  can be passed through outbound/sending SMTP servers.
+
+## Usage
+**Start the SMTP Analysis Server:** The following command starts the SMTP Analysis Server and tells it to analyse incoming e-mails for the ANALYSIS.DOMAIN domain:  
+```python3 smtp_analysis_server.py ANALYSIS.DOMAIN``` 
+
+**Analysing outbound SMTP servers:** With the SMTP Analysis Server running, you can now send e-mails through an outbound server to the inbound analysis server with the SMTP Smuggling Scanner as follows.  
+```python3 smtp_smuggling_scanner.py YOUR@ANALYSIS.DOMAIN --outbound-smtp-server SOMESERVER.SMTP.SERVER --port 587 --starttls --sender-address YOUR@EMAIL.ADRESS --username YOUR@EMAIL.ADRESS --password PASSWORD```  
+
+## Interpreting Results
+On receiving an e-mail, the SMTP Analysis Server prints *Raw message data* (the raw bytes as they are transfered over the network) as well as *Decoded message data* (the message as it will be displayed in a mail user agent). For analysis, the raw message data is mainly interesting to us. Now, on receiving an e-mail, we may see the following raw message data:  
+```
+[PREVIOUS HEADER DATA OMITTED]
+From: YOUR@EMAIL.ADDRESS\r\n
+To: YOUR@ANALSIS.DOMAIN\r\n
+Subject: Trying EOD ('\\n.\\n')\r\n
+\r\n
+TESTING \'\\n.\\n\' as "fake" end-of-data sequence!\r\n
+SMUGGLINGSTART\r\n
+\r\n
+..\r\n
+\r\n
+SMUGGLINGEND\r\n
+.\r\n
+```  
+This indicates that the sequence "\n.\n" gets replaced with the escaped sequence "\r\n..\r\n" (i.e., dot stuffing). For readability, bytes between the SMUGGLING highlights (SMUGGLINGSTART and SMUGGLINGEND) get printed separately.  
+```
+[+] Found identifiers!
+SMUGGLINGSTART\r\n
+\r\n
+..\r\n
+\r\n
+SMUGGLINGEND
+```
 
 # I'm vulnerable. What now?  
 If you are using popular software like Postfix, you can find more information on their website (e.g., [www.postfix.org/smtp-smuggling.html](https://www.postfix.org/smtp-smuggling.html)).  
